@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: RDS stack
+Parameters:
+  EnvironmentName:
+    Type: String
+    Description: Name of the current Environment.
+  DBUser:
+    NoEcho: 'true'
+    Description: The database admin account username
+    Type: String
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: must begin with a letter and contain only alphanumaric characters.
+  DBPassword:
+    NoEcho: 'true'
+    Description: The database admin account password
+    Type: String
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: must contain only alphanumeric characters.
+  DBInstanceName:
+    Description: Database instance identifier
+    Type: String
+    Default: testRDS
+#  OptionGroup:
+#    Type: AWS::RDS::OptionGroup
+#  DBServerSecurityGroup:
+#    Type: List<AWS::EC2::SecurityGroup::Id>
+  EC2SubnetA:
+    Description: Select the subnet for Availability Zone A
+    Type: AWS::EC2::Subnet::Id
+    Default: subnet-8697a1cf
+  EC2SubnetB:
+    Description: Select the subnet for Availability Zone B
+    Type: AWS::EC2::Subnet::Id
+    Default: subnet-4d75c215
+  EC2SubnetC:
+    Description: Select the subnet for Availability Zone C
+    Type: AWS::EC2::Subnet::Id
+    Default: subnet-9b5b5ffc   
+    
+Resources:
+  OptionGroup:
+    Type: AWS::RDS::OptionGroup
+    Properties:
+      EngineName: sqlserver-se
+      MajorEngineVersion: '11.00'
+      OptionGroupDescription: OptionGroup
+  AWSRDSDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: RDS DB Subnet Group
+      SubnetIds:
+      - Ref: EC2SubnetA
+      - Ref: EC2SubnetB
+      - Ref: EC2SubnetC  
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: '200'
+      AllowMajorVersionUpgrade: 'false'
+      AutoMinorVersionUpgrade: 'true'
+      BackupRetentionPeriod: '30'
+      DBInstanceClass: db.m5.large
+      DBInstanceIdentifier:
+        Ref: DBInstanceName
+      Engine: sqlserver-se
+      EngineVersion: 11.00.7462.6.v1
+      Iops: '1000'
+      LicenseModel: license-included
+      PreferredBackupWindow: 01:00-03:00
+      PreferredMaintenanceWindow: sun:06:00-sun:06:30
+      MasterUsername:
+        Ref: DBUser
+      MasterUserPassword:
+        Ref: DBPassword
+      OptionGroupName:
+        Ref: OptionGroup
+#      PubliclyAccessible: 'false'
+      StorageEncrypted: 'true'
+      StorageType: io1
+      DBSubnetGroupName:
+        Ref: AWSRDSDBSubnetGroup 
+      VPCSecurityGroups:
+#        Ref: DBServerSecurityGroup
+        - Fn::ImportValue: !Sub ${EnvironmentName}-RdsSecurityGroup
+Outputs:
+  InstanceId:
+    Description: InstanceId of the newly created DB instance
+    Value:
+      Ref: DBInstance
+    Export:
+      Name: !Sub ${EnvironmentName}-DBInstance       

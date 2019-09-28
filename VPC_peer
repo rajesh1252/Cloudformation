@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Create a VPC and a VPC Peering connection using the PeerRole to accept.
+#Use peer account role ARN
+Mappings:
+  NetworkMap:
+    Production:
+      VPCIds:   "vpc-xxxxxxxxx"
+      accountId:    "xxxxxxxxx"
+      VPCcidr:   "10.17.0.0/20"
+    SharedServices:
+      VPCIds:     "vpc-xxxxxxxxx"
+      accountId:    "xxxxxxxxxxxx"
+      VPCcidr:   "10.18.0.0/20"
+    Dev:
+      VPCIds:     "vpc-xxxxxxxxxxxx"
+      accountId:    "xxxxxxxxx"
+      VPCcidr:   "10.19.0.0/20"
+    Master:
+      VPCIds:     "vpc-xxxxxxxx"
+      accountId:    "xxxxxxxxxxxx"
+      VPCcidr:   "10.7.0.0/20"
+    QA:
+      VPCIds:     "vpc-xxxxxxxx"
+      accountId:    "xxxxxxxxxxxxxxxx"
+      VPCcidr:   "10.12.0.0/20"
+      
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: select VPC ID
+    ConstraintDescription: Valid VPC ID
+  PeerVPCName:
+    Type: String
+    Description: The name of the source VPC
+  PeerRoleArn:
+    Type: String
+    Description: Destination PEER role ARN
+  PUBLICRouteTable:
+    Type: String
+    Description: PUBLIC route table source ID
+  PRIVATERouteTable:  
+    Type: String
+    Description: Provide PRIVATE route table source ID  
+
+Outputs:
+  VPCPeeringConnectionId:
+    Value:
+      Ref: VpcPeeringConnection
+    Description: VPC Peering Connection ID
+Resources:
+  VpcPeeringConnection:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      VpcId: !Ref VpcId
+      PeerVpcId: !FindInMap [ NetworkMap, !Ref PeerVPCName, VPCIds ]
+      PeerOwnerId: !FindInMap [ NetworkMap, !Ref PeerVPCName, accountId ]
+      PeerRoleArn: !Ref PeerRoleArn
+      Tags: 
+        - Key: Name
+          Value: !Sub "${AWS::StackName}"
+  PubPeerRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PUBLICRouteTable
+      DestinationCidrBlock: !FindInMap [ NetworkMap, !Ref PeerVPCName, VPCcidr ]
+      VpcPeeringConnectionId: !Ref VpcPeeringConnection
+
+  PrvPeerRouteA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PRIVATERouteTable
+      DestinationCidrBlock: !FindInMap [ NetworkMap, !Ref PeerVPCName, VPCcidr ]
+      VpcPeeringConnectionId: !Ref VpcPeeringConnection
+            
