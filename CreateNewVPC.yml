@@ -1,0 +1,38 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create a new VPC
+Parameters:
+  EnvironmentName:
+    Type: String
+    Description: The name of the VPC.
+  Cidr: 
+    Type: String
+    Description: Enter CidrBlock range
+  EnableDnsSupport:
+    Type: String
+    Description: Enter value
+    Default: true  
+    AllowedValues: [true, false]    
+  EnableDnsHostnames:
+    Type: String 
+    Description: Enter value
+    Default: true
+    AllowedValues: [true, false]
+Resources:
+  vpc:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+     CidrBlock: !Ref Cidr
+     EnableDnsSupport: !Ref EnableDnsSupport
+     EnableDnsHostnames: !Ref EnableDnsHostnames
+     InstanceTenancy: default
+     Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-VPCID
+    Tags:
+      - Key: Name
+        Value:  !Join ['', [!Ref "AWS::StackName", "-VPC" ]]
+Outputs:
+  VPCId:
+    Value: !Ref vpc
+    Export:
+      Name: !Sub ${EnvironmentName}-VPCId

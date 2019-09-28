@@ -1,0 +1,117 @@
+Description: >
+  This template contains the security groups required by our entire stack.
+  We create them in a seperate nested template, so they can be referenced
+  by all of the other nested templates.
+
+Parameters:
+  EnvironmentName:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+
+  VPC:
+    Type: AWS::EC2::VPC::Id
+    Description: Choose which VPC the security groups should be deployed to
+
+Resources:
+  # This security group defines who/where is allowed to access the ECS hosts directly.
+  # By default we're just allowing access from the load balancer.  If you want to SSH
+  # into the hosts, or expose non-load balanced services you can open their ports here.
+  EC2HostSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: Access to the ECS hosts and the tasks/containers that run on them
+      SecurityGroupIngress:
+        # Only allow inbound access to ECS from the ELB
+        - SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          IpProtocol: -1
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-EC2-Hosts
+
+  # This security group defines who/where is allowed to access the Application Load Balancer.
+  # By default, we've opened this up to the public internet (0.0.0.0/0) but can you restrict
+  # it further if you want.
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: Access to the load balancer that sits in front of ECS
+      SecurityGroupIngress:
+          # Allow access from anywhere to our ECS services
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-LoadBalancers
+
+  RedisSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: "A component security group allowing access only to redis"
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-Redis-Hosts
+
+  ElasticacheComponentSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Elasticache security group"
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref RedisSecurityGroup
+          IpProtocol: "tcp"
+          FromPort: "6379"
+          ToPort: "6379"
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-elasticache
+
+  RdsSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: "A component security group allowing access only to rds"
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-RDS-Hosts
+
+  RdsComponentSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Rds security group"
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref RdsSecurityGroup
+          IpProtocol: "tcp"
+          FromPort: "1433"
+          ToPort: "1433"
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}-rds-sg
+Outputs:
+  EC2HostSecurityGroup:
+    Description: A reference to the security group for EC2 hosts
+    Value: !Ref EC2HostSecurityGroup
+
+  LoadBalancerSecurityGroup:
+    Description: A reference to the security group for load balancers
+    Value: !Ref LoadBalancerSecurityGroup
+
+  RedisSecurityGroup:
+    Description: A reference to the security group for redis
+    Value: !Ref RedisSecurityGroup
+
+  ElasticacheComponentSecurityGroup:
+    Description: A reference to the security group for elastic cahche components
+    Value: !Ref ElasticacheComponentSecurityGroup
+    Export:
+      Name: RdsSg
+  RdsSecurityGroup:
+    Description: A reference to the security group for rds components
+    Value: !Ref RdsSecurityGroup
+
+  RdsComponentSecurityGroup:
+    Description: A reference to the security group for rds components
+    Value: !Ref RdsComponentSecurityGroup
